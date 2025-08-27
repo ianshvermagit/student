@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Fees Management</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { 
+      background: linear-gradient(135deg, #ffecd2, #fcb69f, #a1c4fd, #c2e9fb);
+      background-size: 400% 400%;
+      animation: gradientBG 12s ease infinite;
+      min-height: 100vh;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      padding: 20px;
+    }
+    @keyframes gradientBG {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+    .card { border-radius: 15px; box-shadow: 0 6px 15px rgba(0,0,0,0.15); }
+    table { background: #fff; border-radius: 10px; overflow: hidden; }
+    th { background: linear-gradient(90deg, #007bff, #00c6ff); color: white; }
+    .due-row { background: #ffe6e6 !important; color: red !important; font-weight: bold; font-style: italic; }
+    h2 {
+      font-weight: bold;
+      color: #222;
+      text-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+    }
+    #datetime {
+      font-size: 16px;
+      font-weight: bold;
+      color: #444;
+      background: #fff3cd;
+      padding: 6px 14px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-left: 15px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+    .btn { border-radius: 20px; }
+
+    /* LOGIN BOX STYLE */
+    #loginBox {
+      max-width: 400px;
+      margin: 100px auto;
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    #loginBox h3 {
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #007bff;
+    }
+    #mainApp { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN PAGE -->
+  <div id="loginBox" class="card">
+    <h3>🔐 Admin Login</h3>
+    <input id="username" class="form-control mb-3" placeholder="Enter Username">
+    <input id="password" type="password" class="form-control mb-3" placeholder="Enter Password">
+    <button class="btn btn-primary w-100" onclick="checkLogin()">Login</button>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="mainApp">
+    <div class="container">
+      <h2 class="text-center mb-4">
+        🎓 Student Fees Management 
+        <span id="datetime"></span>
+      </h2>
+
+      <!-- Student Form -->
+      <div class="card p-3 mb-4">
+        <h5>Add / Edit Student</h5>
+        <div class="row g-2">
+          <div class="col-md-3"><input id="name" class="form-control" placeholder="Student Name"></div>
+          <div class="col-md-3"><input id="father" class="form-control" placeholder="Father's Name"></div>
+          <div class="col-md-2"><input id="mobile" class="form-control" placeholder="Mobile"></div>
+          <div class="col-md-4"><input id="address" class="form-control" placeholder="Address"></div>
+          <div class="col-md-3"><input id="fees" type="number" class="form-control" placeholder="Total Fees"></div>
+          <div class="col-md-3"><input id="enrollDate" type="date" class="form-control"></div>
+          <div class="col-md-3"><button class="btn btn-primary w-100" onclick="addStudent()">Save Student</button></div>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="card p-3 mb-4">
+        <input id="search" onkeyup="searchStudent()" class="form-control" placeholder="🔍 Search by student name...">
+      </div>
+
+      <!-- Student List -->
+      <div class="card p-3">
+        <h5>Student List</h5>
+        <div class="table-responsive">
+          <table class="table table-bordered text-center align-middle">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Father</th>
+                <th>Mobile</th>
+                <th>Address</th>
+                <th>Total Fees</th>
+                <th>Paid</th>
+                <th>Balance</th>
+                <th>Enroll Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="studentTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* -------- LOGIN LOGIC -------- */
+function checkLogin() {
+  let user = document.getElementById("username").value;
+  let pass = document.getElementById("password").value;
+  if (user === "admin" && pass === "1234") {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("mainApp").style.display = "block";
+  } else {
+    alert("Invalid Username or Password!");
+  }
+}
+
+/* -------- STUDENT FEES MANAGEMENT LOGIC -------- */
+let students = JSON.parse(localStorage.getItem("students") || "[]");
+let editIndex = -1;
+
+function saveData() {
+  localStorage.setItem("students", JSON.stringify(students));
+  renderTable();
+}
+
+function addStudent() {
+  const name = document.getElementById("name").value;
+  const father = document.getElementById("father").value;
+  const mobile = document.getElementById("mobile").value;
+  const address = document.getElementById("address").value;
+  const fees = parseInt(document.getElementById("fees").value || 0);
+  const enrollDate = document.getElementById("enrollDate").value;
+
+  if (!name || !fees) return alert("Please enter student name and fees!");
+
+  if (editIndex === -1) {
+    students.push({ name, father, mobile, address, fees, payments: [], enrollDate });
+  } else {
+    students[editIndex] = { ...students[editIndex], name, father, mobile, address, fees, enrollDate };
+    editIndex = -1;
+  }
+  saveData();
+  clearForm();
+}
+
+function clearForm() {
+  document.querySelectorAll("input").forEach(inp => inp.value = "");
+}
+
+function editStudent(i) {
+  let s = students[i];
+  document.getElementById("name").value = s.name;
+  document.getElementById("father").value = s.father;
+  document.getElementById("mobile").value = s.mobile;
+  document.getElementById("address").value = s.address;
+  document.getElementById("fees").value = s.fees;
+  document.getElementById("enrollDate").value = s.enrollDate;
+  editIndex = i;
+}
+
+function deleteStudent(i) {
+  if (confirm("Delete this student?")) {
+    students.splice(i, 1);
+    saveData();
+  }
+}
+
+function addPayment(i) {
+  let amount = parseInt(prompt("Enter payment amount:"));
+  if (amount > 0) {
+    students[i].payments.push(amount);
+    saveData();
+  }
+}
+
+function calculateMonthsPassed(enrollDate) {
+  if (!enrollDate) return 0;
+  const start = new Date(enrollDate);
+  const now = new Date();
+  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  if (now.getDate() < start.getDate()) months--; 
+  return months > 0 ? months : 0;
+}
+
+function renderTable(studentsData = students) {
+  const table = document.getElementById("studentTable");
+  table.innerHTML = "";
+  studentsData.forEach((s, i) => {
+    let paid = s.payments.reduce((a, b) => a + b, 0);
+    let monthsPassed = calculateMonthsPassed(s.enrollDate);
+    let expectedFees = s.fees * monthsPassed;
+    let balance = expectedFees - paid;
+    let rowClass = balance > 0 ? "due-row" : "";
+
+    table.innerHTML += `
+      <tr class="${rowClass}">
+        <td>${s.name}</td>
+        <td>${s.father || ""}</td>
+        <td>
+          ${s.mobile || ""}
+          ${s.mobile ? `<br>
+            <a href="tel:${s.mobile}" class="btn btn-sm btn-outline-primary mt-1">📞 Call</a>
+            <a href="https://wa.me/${s.mobile}" target="_blank" class="btn btn-sm btn-outline-success mt-1">💬 WhatsApp</a>` : ""}
+        </td>
+        <td>${s.address || ""}</td>
+        <td>${s.fees}</td>
+        <td>${paid}</td>
+        <td>${balance}</td>
+        <td>${s.enrollDate || ""}</td>
+        <td>
+          <button class='btn btn-sm btn-info' onclick='editStudent(${i})'>✏ Edit</button>
+          <button class='btn btn-sm btn-danger' onclick='deleteStudent(${i})'>🗑 Delete</button>
+          <button class='btn btn-sm btn-success' onclick='addPayment(${i})'>💰 Add Payment</button>
+        </td>
+      </tr>`;
+  });
+}
+
+function searchStudent() {
+  let term = document.getElementById("search").value.toLowerCase();
+  let filtered = students.filter(s => s.name.toLowerCase().includes(term));
+  renderTable(filtered);
+}
+
+function updateDateTime() {
+  const now = new Date();
+  const options = { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" };
+  document.getElementById("datetime").innerText = now.toLocaleDateString("en-US", options);
+}
+setInterval(updateDateTime, 1000);
+updateDateTime();
+
+renderTable();
+</script>
+</body>
+</html>
